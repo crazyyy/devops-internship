@@ -1,1 +1,3 @@
-# devops-internship
+# DevOps Internship
+
+## Protected Branches
