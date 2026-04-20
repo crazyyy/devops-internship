@@ -1,0 +1,6 @@
+[Unit]
+Description=Disk Usage Monitor
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/disk_monitor.sh

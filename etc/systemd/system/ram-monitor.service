@@ -1,0 +1,6 @@
+[Unit]
+Description=RAM Usage Monitor
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/ram_monitor.sh

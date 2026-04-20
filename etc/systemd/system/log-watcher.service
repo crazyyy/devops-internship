@@ -1,0 +1,7 @@
+[Unit]
+Description=Log Watcher Service
+
+[Service]
+ExecStart=/usr/local/bin/log_watcher.sh
+Restart=always
+RestartSec=60
