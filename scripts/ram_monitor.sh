@@ -1,7 +1,7 @@
 #!/bin/bash
 
 LOG_FILE="/var/log/ram_monitor.log"
-THRESHOLD=85
+THRESHOLD=1
 
 read USED TOTAL <<< $(free -m | awk '/Mem:/ {print $3, $2}')
 USAGE=$(( USED * 100 / TOTAL ))
