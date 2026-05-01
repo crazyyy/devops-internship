@@ -1,136 +1,178 @@
-# DevOps Internship
+# Docker Monitoring (Disk + RAM + Log Watcher)
 
-## Answers
+## Overview
 
-### Чому змінюються inode, але не диск?
+This project runs system monitoring scripts inside a single Docker container:
 
-Порожні файли займають inode (метадані), але майже не використовують дисковий простір.
+- Disk usage monitor
+- RAM usage monitor
+- Log watcher (detects warnings)
 
-### Як знайти директорію з найбільшою кількістю файлів?
+All scripts are scheduled using **cron** (no systemd inside container).
 
-```sh
-find / -type f | sed 's|/[^/]*$||' | sort | uniq -c | sort -nr | head
+Logs are stored in a **Docker named volume** and persist between restarts.
+
+---
+
+## Requirements
+
+- Docker
+- Docker Compose
+
+---
+
+## Build and Run
+
+### 1. Build and start container
+
+```bash
+docker compose up -d --build
+````
+
+---
+
+### 2. Check container is running
+
+```bash
+docker ps
 ```
 
-### Що означає t у drwxrwxrwt?
+Expected:
 
-Це sticky bit — дозволяє видаляти файли тільки власнику файлу або root.
-
-### Де використовується за замовчуванням?
-
-У директорії: `/tmp`
-
-### Що буде, якщо інший користувач спробує видалити файл?
-
-Він отримає відмову, навіть якщо має права на запис у директорію.
-
-### Навіщо sticky bit?
-
-Щоб захистити файли користувачів у спільних директоріях.
-
-## Protected Branches
-
-![alt text](image.png)
-
-## RAM and Disk monitor services
-
-### 1. Disk Monitor
-
-- create script
-  `nano /usr/local/bin/disk_monitor.sh`
-
-- paste script content and save
-
-- make executable
-  `chmod +x /usr/local/bin/disk_monitor.sh`
-
-- create service
-  `nano /etc/systemd/system/disk-monitor.service`
-
-- create timer
-  `nano /etc/systemd/system/disk-monitor.timer`
+```sh
+monitoring   Up ...
+```
 
 ---
 
-### 2. RAM Monitor
+## Verify Cron Jobs
 
-- create script
-  `nano /usr/local/bin/ram_monitor.sh`
+Enter container:
 
-- paste script content and save
+```bash
+docker exec -it monitoring bash
+```
 
-- make executable
-  `chmod +x /usr/local/bin/ram_monitor.sh`
+Check cron jobs:
 
-- create service
-  `nano /etc/systemd/system/ram-monitor.service`
+```bash
+crontab -l
+```
 
-- create timer
-  `nano /etc/systemd/system/ram-monitor.timer`
+Expected output:
 
----
-
-### 3. Log Watcher
-
-- create script
-  `nano /usr/local/bin/log_watcher.sh`
-
-- paste script content and save
-
-- make executable
-  `chmod +x /usr/local/bin/log_watcher.sh`
-
-- create service
-  `nano /etc/systemd/system/log-watcher.service`
+```sh
+0 * * * * /usr/local/bin/disk_monitor.sh
+0 * * * * /usr/local/bin/ram_monitor.sh
+*/5 * * * * /usr/local/bin/log_watcher.sh
+```
 
 ---
 
-### 4. Reload systemd
+## Verify Logs Inside Container
 
-- reload systemd configuration
-  `sudo systemctl daemon-reload`
+```bash
+ls /var/log
+```
 
----
+Expected files:
 
-### 5. Enable and start timers
+- disk_monitor.log
+- ram_monitor.log
+- email_notifications.log
 
-- enable disk monitor timer
-  `sudo systemctl enable --now disk-monitor.timer`
+View logs:
 
-- enable RAM monitor timer
-  `sudo systemctl enable --now ram-monitor.timer`
-
----
-
-### 6. Enable log watcher
-
-- start service
-  `sudo systemctl enable --now log-watcher.service`
+```bash
+cat /var/log/disk_monitor.log
+cat /var/log/ram_monitor.log
+cat /var/log/email_notifications.log
+```
 
 ---
 
-### 7. Verification
+## Verify Logs from Host (Docker Volume)
 
-- check timers
-  `systemctl list-timers`
+### 1. List volumes
 
-- check disk monitor
-  `systemctl status disk-monitor.timer`
+```bash
+docker volume ls
+```
 
-- check RAM monitor
-  `systemctl status ram-monitor.timer`
+Find volume name (example):
 
-- check logs
-  `cat /var/log/disk_monitor.log`
-  `cat /var/log/ram_monitor.log`
-  `cat /var/log/email_notifications.log`
+```bash
+devops-internship_monitoring_logs
+```
 
 ---
 
-## 8. Optional (manual test)
+### 2. Inspect volume
 
-- run disk monitor manually
-  `/usr/local/bin/disk_monitor.sh`
+```bash
+docker volume inspect devops-internship_monitoring_logs
+```
 
-- run RAM monitor manually
-  `/usr/local/bin/ram_monitor.sh`
+---
+
+### 3. Access logs via temporary container
+
+```bash
+docker run --rm -it -v devops-internship_monitoring_logs:/logs ubuntu bash
+```
+
+Inside container:
+
+```bash
+ls /logs
+cat /logs/disk_monitor.log
+```
+
+---
+
+## Manual Test (Recommended)
+
+Run scripts manually:
+
+```bash
+docker exec -it monitoring bash
+
+/usr/local/bin/disk_monitor.sh
+/usr/local/bin/ram_monitor.sh
+/usr/local/bin/log_watcher.sh
+```
+
+---
+
+## Fast Testing Mode
+
+To test quickly without waiting 1 hour:
+
+Edit cron schedule in Dockerfile:
+
+```bash
+*/1 * * * * /usr/local/bin/disk_monitor.sh
+*/1 * * * * /usr/local/bin/ram_monitor.sh
+```
+
+Rebuild:
+
+```bash
+docker compose down
+docker compose up -d --build
+```
+
+---
+
+## Restart Behavior
+
+Container uses:
+
+```bash
+restart: unless-stopped
+```
+
+This means:
+
+- container restarts automatically after reboot
+- stops only if manually stopped

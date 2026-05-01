@@ -1,7 +1,7 @@
 #!/bin/bash
 
 LOG_FILE="/var/log/disk_monitor.log"
-THRESHOLD=80
+THRESHOLD=1
 
 USAGE=$(df -h / | awk 'NR==2 {gsub("%","",$5); print $5}')
 TIMESTAMP=$(date "+%Y-%m-%d %H:%M:%S")
