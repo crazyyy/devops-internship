@@ -1,0 +1,12 @@
+version: "3.8"
+
+services:
+  monitoring:
+    build: .
+    container_name: monitoring
+    restart: unless-stopped
+    volumes:
+      - monitoring_logs:/var/log
+
+volumes:
+  monitoring_logs:
